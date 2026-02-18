@@ -1,5 +1,6 @@
 use std::sync::Arc;
 
+use pixels::{Pixels, SurfaceTexture};
 use winit::{
     application::ApplicationHandler,
     dpi::LogicalSize,
@@ -17,6 +18,7 @@ const TITLE: &str = "Falling Sand Simulator";
 #[derive(Default)]
 struct FallingApp {
     window: Option<Arc<Window>>,
+    pixels: Option<Pixels<'static>>,
 }
 
 impl ApplicationHandler for FallingApp {
@@ -25,8 +27,19 @@ impl ApplicationHandler for FallingApp {
         let attribs = Window::default_attributes()
             .with_title(TITLE)
             .with_inner_size(size);
-        let window = Arc::new(event_loop.create_window(attribs).unwrap());
-        self.window = Some(window);
+        let window = Arc::new(
+            event_loop
+                .create_window(attribs)
+                .expect("ERROR: Failed to create a window."),
+        );
+        self.window = Some(window.clone());
+
+        let inner_size = window.inner_size();
+        let surface_texture = SurfaceTexture::new(inner_size.width, inner_size.height, window);
+        let pixels = Pixels::new(WIDTH as u32, HEIGHT as u32, surface_texture)
+            .expect("ERROR: Failed to create a pixel buffer.");
+
+        self.pixels = Some(pixels);
     }
     fn window_event(
         &mut self,
@@ -39,7 +52,17 @@ impl ApplicationHandler for FallingApp {
                 event_loop.exit();
             }
             WindowEvent::RedrawRequested => {
-                if let Some(window) = self.window.as_ref() {
+                if let (Some(window), Some(pixels)) = (self.window.as_ref(), self.pixels.as_mut()) {
+                    let frame = pixels.frame_mut();
+
+                    for pixel in frame.chunks_exact_mut(4) {
+                        pixel.copy_from_slice(&[0x15, 0x15, 0x15, 0xFF]);
+                    }
+
+                    if let Err(e) = pixels.render() {
+                        println!("ERROR: Failed to render pixels: {:?}", e);
+                        event_loop.exit();
+                    }
                     window.request_redraw();
                 }
             }
