@@ -23,6 +23,15 @@ impl World {
         }
     }
 
+    pub fn paint(&mut self, mouse_pos: (usize, usize)) {
+        if mouse_pos.1 >= self.grid_width || mouse_pos.0 >= self.grid_height {
+            return;
+        }
+
+        let idx = mouse_pos.1 * self.grid_width + mouse_pos.0;
+        self.curr_grid[idx] = Particle::Sand;
+    }
+
     pub fn update(&mut self) -> () {
         for y in 0..self.grid_height {
             for x in 0..self.grid_width {
@@ -32,9 +41,9 @@ impl World {
                     _ => {}
                 }
             }
-            std::mem::swap(&mut self.curr_grid, &mut self.next_grid);
-            self.next_grid.fill(Particle::Air);
         }
+        std::mem::swap(&mut self.curr_grid, &mut self.next_grid);
+        self.next_grid.fill(Particle::Air);
     }
 
     pub fn particles(&self) -> &[Particle] {
@@ -43,6 +52,7 @@ impl World {
 
     fn update_sand(&mut self, x: usize, y: usize, idx: usize) -> () {
         if y >= self.grid_height - 1 {
+            self.next_grid[idx] = Particle::Sand;
             return;
         }
 

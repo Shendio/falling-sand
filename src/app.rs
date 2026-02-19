@@ -2,7 +2,10 @@ use std::sync::Arc;
 
 use pixels::{Pixels, SurfaceTexture};
 use winit::{
-    application::ApplicationHandler, dpi::LogicalSize, event::WindowEvent, window::Window,
+    application::ApplicationHandler,
+    dpi::LogicalSize,
+    event::{ElementState, MouseButton, WindowEvent},
+    window::Window,
 };
 
 use crate::world::{Particle, World};
@@ -22,6 +25,8 @@ pub struct FallingApp {
     window: Option<Arc<Window>>,
     pixels: Option<Pixels<'static>>,
     world: World,
+    mouse_pos: Option<(usize, usize)>,
+    mouse_down: bool,
 }
 
 impl ApplicationHandler for FallingApp {
@@ -47,6 +52,12 @@ impl ApplicationHandler for FallingApp {
         self.world = World::new(WIDTH as usize, HEIGHT as usize);
     }
     fn about_to_wait(&mut self, _event_loop: &winit::event_loop::ActiveEventLoop) {
+        if self.mouse_down {
+            if let Some(mouse_pos) = self.mouse_pos {
+                self.world.paint(mouse_pos);
+            }
+        }
+
         if let Some(window) = &self.window {
             self.world.update();
             window.request_redraw();
@@ -61,6 +72,32 @@ impl ApplicationHandler for FallingApp {
         match event {
             WindowEvent::CloseRequested => {
                 event_loop.exit();
+            }
+            WindowEvent::CursorMoved {
+                device_id,
+                position,
+            } => {
+                let _ = device_id;
+                if let Some(pixels) = &self.pixels {
+                    match pixels.window_pos_to_pixel((position.x as f32, position.y as f32)) {
+                        Ok((x, y)) => self.mouse_pos = Some((x, y)),
+                        Err(_) => {
+                            self.mouse_pos = None;
+                        }
+                    }
+                }
+            }
+            WindowEvent::MouseInput {
+                device_id,
+                state,
+                button,
+            } => {
+                let _ = device_id;
+                let pressed = state == ElementState::Pressed;
+
+                if button == MouseButton::Left {
+                    self.mouse_down = pressed;
+                }
             }
             WindowEvent::RedrawRequested => {
                 if let Some(pixels) = &mut self.pixels {
