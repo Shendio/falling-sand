@@ -5,16 +5,23 @@ use winit::{
     application::ApplicationHandler, dpi::LogicalSize, event::WindowEvent, window::Window,
 };
 
+use crate::world::{Particle, World};
+
 const WIDTH: u32 = 400;
 const HEIGHT: u32 = 400;
 const SCALE: f32 = 2.0;
 
 const TITLE: &str = "Falling Sand Simulator";
 
+const BACKGROUND_COLOR: [u8; 4] = [0x15, 0x15, 0x15, 0xFF];
+const SAND_COLOR: [u8; 4] = [0xFA, 0xE8, 0xB4, 0xFF];
+const WATER_COLOR: [u8; 4] = [0x44, 0x88, 0xFF, 0xFF];
+
 #[derive(Default)]
 pub struct FallingApp {
     window: Option<Arc<Window>>,
     pixels: Option<Pixels<'static>>,
+    world: World,
 }
 
 impl ApplicationHandler for FallingApp {
@@ -36,6 +43,14 @@ impl ApplicationHandler for FallingApp {
             .expect("ERROR: Failed to create a pixel buffer.");
 
         self.pixels = Some(pixels);
+
+        self.world = World::new(WIDTH as usize, HEIGHT as usize);
+    }
+    fn about_to_wait(&mut self, _event_loop: &winit::event_loop::ActiveEventLoop) {
+        if let Some(window) = &self.window {
+            self.world.update();
+            window.request_redraw();
+        }
     }
     fn window_event(
         &mut self,
@@ -48,18 +63,24 @@ impl ApplicationHandler for FallingApp {
                 event_loop.exit();
             }
             WindowEvent::RedrawRequested => {
-                if let (Some(window), Some(pixels)) = (self.window.as_ref(), self.pixels.as_mut()) {
+                if let Some(pixels) = &mut self.pixels {
                     let frame = pixels.frame_mut();
+                    let particles = self.world.particles();
 
-                    for pixel in frame.chunks_exact_mut(4) {
-                        pixel.copy_from_slice(&[0x15, 0x15, 0x15, 0xFF]);
+                    for (pixel, particle) in frame.chunks_exact_mut(4).zip(particles.iter()) {
+                        let color = match particle {
+                            Particle::Sand => SAND_COLOR,
+                            Particle::Water => WATER_COLOR,
+                            Particle::Air => BACKGROUND_COLOR,
+                        };
+
+                        pixel.copy_from_slice(&color);
                     }
 
                     if let Err(e) = pixels.render() {
                         println!("ERROR: Failed to render pixels: {:?}", e);
                         event_loop.exit();
                     }
-                    window.request_redraw();
                 }
             }
             _ => (),

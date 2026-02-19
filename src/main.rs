@@ -1,4 +1,5 @@
 mod app;
+mod world;
 
 use winit::event_loop::{ControlFlow, EventLoop};
 
